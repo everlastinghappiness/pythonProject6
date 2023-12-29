@@ -1,6 +1,11 @@
 import pygame
 import random
 
+
+def ok():
+    pass
+
+
 # Инициализация Pygame
 pygame.init()
 
