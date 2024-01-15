@@ -184,8 +184,8 @@ class Math:
         return self.incorrect1, self.incorrect2
 
 
-answer, example = Math.correct_answer()
-incor1, incor2 = Math.incorrect_answer()
+#answer, example = Math.correct_answer()
+#incor1, incor2 = Math.incorrect_answer()
 
 
 tunnel_image = load_image('tunnel.png')
