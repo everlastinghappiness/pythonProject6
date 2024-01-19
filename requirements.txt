@@ -1,0 +1,8 @@
+pip       
+pygame   
+setuptools 
+wheel  
+random
+random 
+sys
+os    
