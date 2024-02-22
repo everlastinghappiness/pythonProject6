@@ -1,0 +1,476 @@
+import os
+import pygame
+import sys
+import random
+
+pygame.init()
+
+WINDOW_WIDTH = 1000
+WINDOW_HEIGHT = 600
+
+screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+pygame.display.set_caption("Гонки")
+
+
+def terminate():
+    pygame.quit()
+    sys.exit()
+
+screen_rect = (0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
+car_width = car_height = 50
+x = 50
+FPS = 60
+score = 0
+font_main = pygame.font.SysFont('Arial', 50)
+objects = []
+font_game = pygame.font.Font(None, 50)
+game_state = "start_menu"
+
+
+def start_screen():
+    clock = pygame.time.Clock()
+    fon = pygame.transform.scale(load_image('fon.jpg'),
+                                 (screen.get_width(), screen.get_height()))
+
+    screen.blit(fon, (0, 0))
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                return
+            customButton.process()
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
+
+
+
+def second_screen():
+    intro_text = ["Правила игры",
+                  "В верху экрана будут появляться арифметические примеры.",
+                  "Ваша задача: устно решить пример и заехать машинкой в туннель,",
+                  "обозначенный правильным ответом.",
+                  "Управление машинкой осуществляется нажатием кнопок: 'вверх', 'вниз', 'вправо'.",
+                  "Удачи!"]
+    clock = pygame.time.Clock()
+    fon = pygame.transform.scale(load_image('fon.jpg'),
+                                 (screen.get_width(), screen.get_height()))
+    screen.blit(fon, (0, 0))
+    font = pygame.font.Font(None, 30)
+    text_coord = 50
+    for line in intro_text:
+        string_rendered = font.render(line, 1, pygame.Color('black'))
+        intro_rect = string_rendered.get_rect()
+        text_coord += 10
+        intro_rect.top = text_coord
+        intro_rect.x = 10
+        text_coord += intro_rect.height
+        screen.blit(string_rendered, intro_rect)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+
+            if event.type == pygame.KEYDOWN or \
+                    event.type == pygame.MOUSEBUTTONDOWN:
+                return
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
+def draw_game_over_screen():
+    screen.fill((0, 0, 0))
+    font = pygame.font.SysFont('arial', 40)
+    title = font.render('Game Over', True, (255, 255, 255))
+    restart_button = font.render('R - Restart', True, (255, 255, 255))
+    quit_button = font.render('Q - Quit', True, (255, 255, 255))
+    screen.blit(title, (1000 / 2 - title.get_width() / 2, 600 / 2 - title.get_height() / 3))
+    screen.blit(restart_button,
+                (1000 / 2 - restart_button.get_width() / 2, 600 / 1.9 + restart_button.get_height()))
+    screen.blit(quit_button,
+                (1000 / 2 - quit_button.get_width() / 2, 600 / 2 + quit_button.get_height() / 2))
+    pygame.display.update()
+
+def draw_win_screen():
+    screen.fill((0, 0, 0))
+    font = pygame.font.SysFont('arial', 40)
+    title = font.render('Excellent', True, (255, 255, 255))
+    restart_button = font.render('R - Restart', True, (255, 255, 255))
+    quit_button = font.render('Q - Quit', True, (255, 255, 255))
+    screen.blit(title, (1000 / 2 - title.get_width() / 2, 600 / 2 - title.get_height() / 3))
+    screen.blit(restart_button,
+                (1000 / 2 - restart_button.get_width() / 2, 600 / 1.9 + restart_button.get_height()))
+    screen.blit(quit_button,
+                (1000 / 2 - quit_button.get_width() / 2, 600 / 2 + quit_button.get_height() / 2))
+    pygame.display.update()
+
+def load_image(name, colorkey=None):
+    fullname = os.path.join('data', name)
+    if not os.path.isfile(fullname):
+        print(f"Файл с изображением '{fullname}' не найден")
+        sys.exit()
+    image = pygame.image.load(fullname)
+    if colorkey is not None:
+        image = image.convert()
+        if colorkey == -1:
+            colorkey = image.get_at((0, 0))
+        image.set_colorkey(colorkey)
+    else:
+        image = image.convert_alpha()
+    return image
+
+
+all_sprites = pygame.sprite.Group()
+car_group = pygame.sprite.Group()
+tunnel_group = pygame.sprite.Group()
+road_group = pygame.sprite.Group()
+arrow_group = pygame.sprite.Group()
+
+
+class Button:
+    def __init__(self, x, y, width, height, buttonText='Button', onclickFunction=None, onePress=False):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.onclickFunction = onclickFunction
+        self.onePress = onePress
+
+        self.fillColors = {
+            'normal': '#ffffff',
+            'hover': '#cfcfcf',
+            'pressed': '#333333',
+        }
+        self.buttonSurface = pygame.Surface((self.width, self.height))
+        self.buttonRect = pygame.Rect(self.x, self.y, self.width, self.height)
+        self.buttonSurf = font_main.render(buttonText, True, (0, 0, 0))
+        self.alreadyPressed = False
+        objects.append(self)
+
+    def process(self):
+        mousePos = pygame.mouse.get_pos()
+        self.buttonSurface.fill(self.fillColors['normal'])
+        if self.buttonRect.collidepoint(mousePos):
+            self.buttonSurface.fill(self.fillColors['hover'])
+            if pygame.mouse.get_pressed(num_buttons=3)[0]:
+                self.buttonSurface.fill(self.fillColors['pressed'])
+                if self.onePress:
+                    self.onclickFunction()
+                elif not self.alreadyPressed:
+                    self.alreadyPressed = True
+            else:
+                self.alreadyPressed = False
+        self.buttonSurface.blit(self.buttonSurf, [
+            self.buttonRect.width / 2 - self.buttonSurf.get_rect().width / 2,
+            self.buttonRect.height / 2 - self.buttonSurf.get_rect().height / 2])
+        screen.blit(self.buttonSurface, self.buttonRect)
+
+    def update(self, *args):
+        if args and args[0].type == pygame.MOUSEBUTTONDOWN:
+            return
+
+
+customButton = Button(600, 290, 170, 50, 'start')
+
+
+
+class Math:
+    def __init__(self):
+        self.a = random.randrange(0, 11)
+        self.b = random.randrange(0, 11)
+        self.i = random.randrange(0, 2)
+        self.j = random.randrange(0, 2)
+        self.answer = 0
+        self.incorrect1 = 0
+        self.incorrect2 = 0
+        self.example = ''
+        self.correct_answer()
+        self.incorrect_answer()
+
+    def correct_answer(self):
+        if self.i == 0:
+            self.answer = self.a * self.b
+            self.example = str(self.a) + ' * ' + str(self.b) + ' = ' + " ? "
+        else:
+            if self.a != 0 and self.b != 0:
+                if self.j == 0:
+                    self.answer = self.a * self.b // self.a
+                    self.example = str(self.a * self.b) + ' % ' + str(self.a) + ' = ' + " ? "
+                else:
+                    self.answer = self.a * self.b // self.b
+                    self.example = str(self.a * self.b) + ' % ' + str(self.b) + ' = ' + " ? "
+            else:
+                self.answer = self.a * self.b
+                self.example = str(self.a) + ' * ' + str(self.b) + ' = ' + " ? "
+
+
+    def incorrect_answer(self):
+        if self.answer != 0:
+            self.incorrect1 = random.randrange(self.answer - 5, self.answer)
+            self.incorrect2 = random.randrange(self.answer + 1, self.answer + 6)
+        else:
+            self.incorrect1 = random.randrange(self.answer + 1, self.answer + 5)
+            self.incorrect2 = random.randrange(self.answer + 5, self.answer + 9)
+
+
+
+tunnel_image = load_image('tunnel.png')
+car_image = load_image('car.png')
+road_image = load_image('road.png')
+math = Math()
+answers = [math.answer, math.incorrect1, math.incorrect2]
+coords = [(850, 50), (850, 200), (850, 350)]
+
+
+class Arrow(pygame.sprite.Sprite):
+    image = load_image("arrow.png")
+
+    def __init__(self):
+        super().__init__(arrow_group, all_sprites)
+        self.image = Arrow.image
+        self.rect = self.image.get_rect()
+
+    def update(self, *args):
+        self.rect.topleft = args[0].pos
+
+
+class Car(pygame.sprite.Sprite):
+
+    def __init__(self, x=10, y=250):
+        super().__init__(car_group)
+        self.image = car_image
+        self.car_image = car_image
+
+        self.rect = self.car_image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.mask = pygame.mask.from_surface(self.image)
+        self.mask = pygame.mask.from_surface(self.image)
+        self.flag = False
+        self.pos_an = 0
+
+    def update(self, *args):
+        h = pygame.sprite.spritecollideany(self, tunnel_group, collided=pygame.sprite.collide_mask)
+        if not h:
+            self.rect = self.rect.move(args[0][0], args[0][1])
+            self.y = self.rect[1]
+        else:
+
+            check(h)
+
+
+def check(tun):
+    global game_state
+
+    if tun.result != math.answer:
+        game_state = "game_over"
+
+    else:
+        game_state = "new_game"
+
+
+def restart():
+    global tun, tun1, tun2, math, answers
+    car.rect.x = 10
+    car.rect.y = 250
+    math = Math()
+    answers = [math.answer, math.incorrect1, math.incorrect2]
+    n = random.sample(answers, 3)
+    tunnel_group.remove(tun, tun1, tun2)
+    tun = Tunnel(800, 100, n[0])
+    tun1 = Tunnel(800, 250, n[1])
+    tun2 = Tunnel(800, 400, n[2])
+
+
+
+
+
+class Tunnel(pygame.sprite.Sprite):
+    def __init__(self, x, y, result):
+        super().__init__(tunnel_group)
+        self.image = tunnel_image
+        self.tunnel_image = tunnel_image
+        self.rect = self.tunnel_image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.result = result
+
+        self.mask = pygame.mask.from_surface(self.image)
+        self.mask = pygame.mask.from_surface(self.image)
+
+
+class Road(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__(road_group, all_sprites)
+        self.image = road_image
+        self.road_image = road_image
+
+        self.rect = self.road_image.get_rect()
+        self.rect.x = 200
+        self.rect.y = 100
+
+n = random.sample(answers, 3)
+tun = Tunnel(800, 100, n[0])
+tun1 = Tunnel(800, 250, n[1])
+tun2 = Tunnel(800, 400, n[2])
+car = Car(10, 250)
+
+
+class Particle(pygame.sprite.Sprite):
+    # сгенерируем частицы разного размера
+    fire = [load_image("star.png")]
+    for scale in (5, 10, 20):
+        fire.append(pygame.transform.scale(fire[0], (scale, scale)))
+
+    def __init__(self, pos, dx, dy):
+        super().__init__(all_sprites)
+        self.image = random.choice(self.fire)
+        self.rect = self.image.get_rect()
+
+        # у каждой частицы своя скорость — это вектор
+        self.velocity = [dx, dy]
+        # и свои координаты
+        self.rect.x, self.rect.y = pos
+
+        # гравитация будет одинаковой (значение константы)
+        self.gravity = 0.2
+
+    def update(self):
+        # применяем гравитационный эффект:
+        # движение с ускорением под действием гравитации
+        self.velocity[1] += self.gravity
+        # перемещаем частицу
+        self.rect.x += self.velocity[0]
+        self.rect.y += self.velocity[1]
+        # убиваем, если частица ушла за экран
+        if not self.rect.colliderect(screen_rect):
+            self.kill()
+
+
+def create_particles(position):
+    # количество создаваемых частиц
+    particle_count = 1
+    # возможные скорости
+    numbers = range(-5, 6)
+
+    for _ in range(particle_count):
+        Particle(position, random.choice(numbers), random.choice(numbers))
+
+def main():
+    global game_state, car, score
+
+    screen.fill('white')
+    MYEVENTTYPE = pygame.USEREVENT + 1
+
+    counter, text = 10, '10'.rjust(3)
+    pygame.time.set_timer(pygame.USEREVENT, 1000)
+    running = True
+    fps = 50
+    clock = pygame.time.Clock()
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == MYEVENTTYPE:
+                create_particles((500, 300))
+
+            if pygame.mouse.get_focused():
+                arrow_group.draw(screen)
+            if event.type == pygame.USEREVENT:
+
+                if counter > 0:
+                    text = str(counter).rjust(3)
+                    counter -= 1
+                elif game_state != 'win':
+                    game_state = "game_over"
+
+            if game_state == "new_game":
+
+                restart()
+                game_state = 'game'
+                score += 1
+                counter, text = 10 - score, str(10 - score).rjust(3)
+                if score > 1:
+                    game_state = 'win'
+
+
+
+
+            elif game_state == "start_menu":
+                start_screen()
+
+                second_screen()
+
+                game_state = "game"
+
+            elif game_state == "game_over":
+
+                draw_game_over_screen()
+                keys = pygame.key.get_pressed()
+                if keys[pygame.K_r]:
+                    game_state = "start_menu"
+                    counter, text = 10, '10'.rjust(3)
+                    restart()
+
+
+                if keys[pygame.K_q]:
+                    terminate()
+            elif game_state == 'win':
+                pygame.time.set_timer(MYEVENTTYPE, 60)
+                draw_win_screen()
+
+
+                keys = pygame.key.get_pressed()
+                if keys[pygame.K_r]:
+                    pygame.time.set_timer(MYEVENTTYPE, 0)
+                    game_state = "start_menu"
+                    counter, text = 10, '10'.rjust(3)
+
+                    restart()
+
+                if keys[pygame.K_q]:
+                    terminate()
+            elif game_state == "game":
+                key = pygame.key.get_pressed()
+                if key[pygame.K_RIGHT]:
+                    car.update((50, 0))
+                elif key[pygame.K_DOWN]:
+
+                    car.update((0, 50))
+
+                elif key[pygame.K_UP]:
+
+                    car.update((0, -50))
+                score_text = font_game.render("Score: " + str(score), True, 'black')
+                score_exampl = font_game.render(str(math.example), True, 'black')
+                score_answer = font_game.render(str(tun.result), True, 'black')
+                score_answer1 = font_game.render(str(tun1.result), True, 'black')
+                score_answer2 = font_game.render(str(tun2.result), True, 'black')
+                screen.fill('white')
+
+
+
+                tunnel_group.draw(screen)
+                car_group.draw(screen)
+                screen.blit(score_text, (10, 10))
+                screen.blit(score_exampl, (450, 10))
+                screen.blit(score_answer, coords[0])
+                screen.blit(score_answer1, coords[1])
+                screen.blit(score_answer2, coords[2])
+                screen.blit(font_game.render(text, True, (0, 0, 0)), (50, 60))
+        all_sprites.update()
+        all_sprites.draw(screen)
+        pygame.display.flip()
+        clock.tick(fps)
+
+    pygame.quit()
+
+
+if __name__ == '__main__':
+    main()
